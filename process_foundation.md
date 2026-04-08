@@ -151,12 +151,16 @@ Full packet depth is required when:
 - the work carries non-trivial risk, or
 - business value is sufficient that mitigation overhead is justified by the cost of a mistake
 
+The severity of findings in scope for a cycle informs the risk assessment. Cycles that address only `minor` or `informational` findings are more likely to qualify for scaled-back depth; cycles that address `critical` or `major` findings are more likely to require full depth.
+
 Scaled-back packet depth is permitted only when all three of the following hold:
 - decisions are already made — the work is implementation only, with no meaningful decision points remaining
 - the change is reversible
 - mistakes are cheap to recover from — the cost of error in effort and money is low
 
 Scaled-back packets must still produce explicit artifacts sufficient for the next phase to consume without reinterpretation. They may omit optional fields and compress multi-packet cycles into a single lightweight record, but they may not omit the minimum required contents for closure determination.
+
+If evidence discovered mid-cycle indicates that the declared packet depth is insufficient for closure determination, packet depth may be escalated from scaled-back to full. Escalation is one-directional — full depth may not be reduced to scaled-back mid-cycle. Escalation should be documented in the current packet with rationale.
 
 ---
 
@@ -259,6 +263,14 @@ The handoff packet answers:
 - Why is the handoff occurring now?
 - What findings, lineage, and evidence matter to the receiver?
 - What review, integration, acceptance, or follow-on work is expected next?
+
+### Document versioning
+
+Governing documents — foundations and specifications — must carry a monotonic integer version identifier (e.g., v1, v2, ... vN). The version number increments by one with each revision.
+
+When a packet references a governing document, it should include the version identifier so that the reference is pinned to the specific version in effect at the time.
+
+The most recent version of a governing document supersedes all prior versions. Prior versions remain available in version-control history for traceability.
 
 ---
 
@@ -427,7 +439,7 @@ Review scope must be explicit. Every review must declare one of the following mo
 
 - **Broad review**
   - Intended to assess the candidate holistically against the governing contract.
-  - Appropriate for major milestones, first reviews, architectural changes, or when confidence in local boundaries is low.
+  - Appropriate for major milestones, first reviews, the first review after a governing document revision, architectural changes, or when confidence in local boundaries is low.
 
 - **Delta review**
   - Intended to assess only the changed area plus predictable impact surfaces.
@@ -503,14 +515,25 @@ Each finding must use one of these statuses:
 - `closed`
 
 Status meanings:
-- `open`: a finding is active and not yet being remediated
+- `open`: a finding is active and not yet being remediated. A finding may also return to `open` from `pending_evaluation` when evaluation determines that remediation was insufficient and work continues in the current cycle.
 - `in_remediation`: corrective work is in progress
 - `pending_evaluation`: remediation is complete enough to evaluate
-- `carried_forward`: the finding remains materially the same in a new cycle
+- `carried_forward`: the finding remains materially the same in a new cycle, or remediation was attempted but judged insufficient and the finding passes to a new cycle
 - `re_scoped`: the finding remains active but its boundary or interpretation changed without becoming a merge or split case
 - `split`: the original finding no longer stands alone and has been replaced by child findings with preserved lineage
 - `merged`: the finding no longer stands alone because it has been absorbed into a surviving finding representing the shared root issue
 - `closed`: closure criteria were met and the finding is no longer active
+
+### Severity vocabulary
+
+Each finding must declare a severity level. The severity vocabulary is:
+
+- `critical`: blocks closure. The defect or gap is severe enough that the affected area cannot be considered safe, correct, or complete. Immediate remediation is required.
+- `major`: materially undermines correctness, coherence, or completeness. Remediation is required before closure but may be sequenced.
+- `minor`: a real issue that does not block closure on its own. Should be remediated but may be deferred with explicit human acceptance per deferral rules.
+- `informational`: an observation, suggestion, or style concern. Does not require remediation. May inform future work.
+
+Severity drives packet depth decisions, deferral eligibility, and routing. "Low-severity" in deferral and closure rules refers to findings with `minor` or `informational` severity.
 
 Each finding must also state closure criteria in advance so that remediation is not judged against an unstated target.
 
@@ -520,6 +543,18 @@ Each finding must also state closure criteria in advance so that remediation is 
 
 Each review/remediation/evaluation/planning/handoff loop should operate on a formal packet with fixed inputs and outputs.
 
+### Cycle ID format
+
+Each cycle must be assigned a unique, durable cycle ID. The default format is:
+
+`<PROJECT>-CYC-<NNN>`
+
+Example:
+
+`PROCDEV-CYC-001`
+
+The project component should be consistent within a project. The numeric component must be unique within a project and must not be reused. Cycle IDs must survive across all phases and packets within a cycle and must remain stable in references from later cycles.
+
 Packet depth scales with consequence. See the Core Granularity Concepts and Decision Points sections for packet depth selection criteria. Even at scaled-back depth, minimum required contents for closure determination must be preserved.
 
 ### Review packet
@@ -528,12 +563,14 @@ Minimum required contents:
 - review mode
 - packet depth declaration
 - local work unit granularity statement
-- governing documents used
+- governing documents used (with version identifiers)
 - candidate artifact set
 - relevant git references when applicable
 - finding records
 - evidence notes
 - scope statement
+- scope widening justification when scope widened
+- out-of-scope flags when any work falls outside declared scope
 - recommended routing assumptions
 
 ### Remediation packet
@@ -548,6 +585,7 @@ Minimum required contents:
 - impacted surfaces checked
 - tests or validation performed
 - unresolved risks
+- document ambiguity flags when governing document ambiguity is the binding problem
 - self-assessed readiness for evaluation
 
 ### Evaluation packet
@@ -560,6 +598,8 @@ Minimum required contents:
 - evidence for closure or non-closure
 - relevant git references when applicable
 - downstream issues identified
+- documentation alignment assessment
+- test coverage assessment
 - document revision recommendation if needed
 - next routing recommendation
 
@@ -577,6 +617,7 @@ Minimum required contents:
 - governing-document changes required before the next cycle
 - declared starting scope for the next cycle
 - next-cycle local work unit granularity assumption
+- next-cycle packet depth assumption
 - handoff granularity decision when applicable
 - git workflow implications when applicable
 
@@ -641,9 +682,9 @@ A cycle may stop only when one of the following is true:
 - remaining findings are validly transformed into `split` or `merged` states with preserved lineage and successor routing
 - remaining items were explicitly re-scoped into a new cycle with preserved identity and rationale
 - the governing documents were judged insufficient, and the next required action is document revision rather than further remediation
-- remaining open findings are explicitly recorded, low severity, non-blocking relative to the current cycle goal, and their deferral has been explicitly accepted by the human owner
+- remaining open findings are explicitly recorded, low severity (`minor` or `informational`), non-blocking relative to the current cycle goal, and their deferral has been explicitly accepted by the human owner
 
-Low-severity follow-on findings may remain open only if:
+Low-severity (`minor` or `informational`) follow-on findings may remain open only if:
 - they are explicitly recorded
 - they are non-blocking relative to the current cycle goal
 - their deferral is explicitly accepted by the human owner
@@ -676,7 +717,7 @@ The process is designed to support delegation, but not all decisions should be a
 
 Human-controlled responsibilities:
 - approving the governing intent when tradeoffs have meaningful strategic consequences
-- accepting explicitly documented low-severity residual risk
+- accepting explicitly documented low-severity (`minor` or `informational`) residual risk
 - deciding when a document revision materially changes project direction
 - adjudicating unresolved conflicts between process goals
 - resolving conflicts between agent outputs
@@ -730,7 +771,7 @@ Evaluation determines:
 - whether the fix created or exposed downstream issues
 - whether documentation and comments are aligned
 - whether test coverage is sufficient
-- whether the item should be closed, carried forward, re-scoped, merged, split, rerouted into document revision, or prepared for handoff
+- whether the item should be closed, returned to open for further remediation within the current cycle, carried forward, re-scoped, merged, split, rerouted into document revision, or prepared for handoff
 
 ### Planning
 Planning determines:
@@ -783,6 +824,13 @@ Tests may be updated just enough to pass while failing to cover:
 
 ### 4. Tracking overhead replacing clarity
 Formal packets and durable IDs can become ceremony if they are maintained mechanically rather than used to preserve reasoning and routing discipline.
+
+Diagnostic signals that this failure mode may be occurring:
+- reasoning fields in packets contain boilerplate or copy-pasted language rather than cycle-specific analysis
+- findings are carried forward across multiple cycles without meaningful status change, scope refinement, or escalation
+- root cause analysis fields restate the symptom rather than analyzing the underlying cause
+- routing decisions consistently select the same route without packet-specific rationale
+- packets satisfy structural requirements but a new participant could not reconstruct the state of the work from them alone
 
 ### 5. Granularity mismatch
 Work may be chunked too finely for coherent external consumption or too coarsely for truthful local evaluation.
@@ -837,7 +885,7 @@ Scaled-back packets applied to work that carries non-trivial risk or high busine
 **Reasoning:** Without packet structure, phase transitions depend too heavily on interpretation and memory, which weakens auditability and convergence.
 
 ### Human risk acceptance does not override closure discipline
-**Decision:** Human acceptance of residual risk is allowed only for explicitly documented low-severity, non-blocking items.
+**Decision:** Human acceptance of residual risk is allowed only for explicitly documented low-severity (`minor` or `informational`), non-blocking items.
 
 **Reasoning:** The process is explicitly designed to avoid silent override behavior and false closure claims.
 

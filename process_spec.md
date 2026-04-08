@@ -211,7 +211,7 @@ The following inputs MUST be available before review begins:
 - Build artifacts that have passed the Phase 3 readiness gate.
 - The governing specification.
 - A declared review mode (`broad` or `delta` — see Section 10.2).
-- A declared packet depth (see Section 8.1).
+- A declared packet depth (see Section 8.2).
 - A declared local work unit granularity (see Section 10.1).
 
 #### Required Actions
@@ -222,11 +222,11 @@ The following inputs MUST be available before review begins:
 - The reviewing agent MUST NOT silently widen scope without justification and documentation.
 - The reviewing agent MUST flag any work that falls outside the declared scope rather than reviewing it silently.
 - The reviewing agent MUST produce a finding record for each identified issue, conforming to Section 9.
-- The reviewing agent MUST produce a review packet conforming to the template in Section 8.2.
+- The reviewing agent MUST produce a review packet conforming to the template in Section 8.3.
 
 #### Required Output
 
-- Review packet (see Section 8.2).
+- Review packet (see Section 8.3).
 - One finding record per identified issue (see Section 9).
 
 #### Readiness Gate — Advancing to Phase 5
@@ -255,11 +255,11 @@ The following inputs MUST be available before remediation begins:
 - The remediating agent MUST update code, tests, documentation, comments, and surrounding abstractions as required by each finding.
 - The remediating agent MUST NOT claim closure for a finding based solely on a code change having occurred.
 - If document ambiguity is identified as the binding problem, the remediating agent MUST flag this for document revision consideration rather than treating implementation as the only issue.
-- The remediating agent MUST produce a remediation packet conforming to the template in Section 8.3.
+- The remediating agent MUST produce a remediation packet conforming to the template in Section 8.4.
 
 #### Required Output
 
-- Remediation packet (see Section 8.3).
+- Remediation packet (see Section 8.4).
 
 #### Readiness Gate — Advancing to Phase 6
 
@@ -287,12 +287,12 @@ The following inputs MUST be available before evaluation begins:
 - The evaluating agent MUST assess whether documentation and comments are aligned with the changed behavior.
 - The evaluating agent MUST assess whether test coverage is sufficient for the changed behavior and its predictable regressions.
 - The evaluating agent MUST NOT close a finding based solely on the presence of a code change or passing tests.
-- The evaluating agent MUST produce an evaluation packet conforming to the template in Section 8.4.
+- The evaluating agent MUST produce an evaluation packet conforming to the template in Section 8.5.
 - If evaluation cannot determine success because the acceptance basis is unstated or conflicted, the evaluating agent MUST flag this for document revision consideration.
 
 #### Required Output
 
-- Evaluation packet (see Section 8.4).
+- Evaluation packet (see Section 8.5).
 - Updated closure status on each evaluated finding record.
 
 #### Readiness Gate — Advancing to Phase 7
@@ -322,11 +322,11 @@ The following inputs MUST be available before cycle planning begins:
 - The planning agent MUST document the rationale for the routing decision.
 - The planning agent MUST explicitly account for all active findings — closed, carried forward, re-scoped, transformed, or deferred with justification.
 - The planning agent MUST declare the starting scope and granularity assumptions for the next cycle.
-- The planning agent MUST produce a planning packet conforming to the template in Section 8.5.
+- The planning agent MUST produce a planning packet conforming to the template in Section 8.6.
 
 #### Required Output
 
-- Planning packet (see Section 8.5).
+- Planning packet (see Section 8.6).
 
 #### Post-Planning
 
@@ -360,11 +360,11 @@ A handoff packet is OPTIONAL but allowed for any other non-local handoff when co
 - The handoff agent MUST preserve lineage to underlying work units.
 - The handoff agent MUST preserve finding identity and truthful closure and non-closure claims.
 - The handoff agent MUST explicitly state what review, integration, acceptance, or follow-on work the receiver is expected to perform.
-- The handoff agent MUST produce a handoff packet conforming to the template in Section 8.6.
+- The handoff agent MUST produce a handoff packet conforming to the template in Section 8.7.
 
 #### Required Output
 
-- Handoff packet (see Section 8.6).
+- Handoff packet (see Section 8.7).
 
 ---
 
@@ -454,10 +454,10 @@ Each finding MUST include at minimum:
 | `id` | MUST | Assigned at first explicit statement of the finding. Format: `<DOMAIN>-<AREA>-<NNN>`. Example: `PROC-TRACK-001`. |
 | `title` | MUST | Concise, stable description of the issue. |
 | `originating_cycle` | MUST | Reference to the cycle in which the finding first appeared. |
-| `severity` | MUST | Declared severity. |
+| `severity` | MUST | One of the severity values defined in Section 9.2. |
 | `governing_source` | MUST | Reference to the specification section, principle, or requirement the finding violates. |
 | `affected_area` | MUST | Description of the code, document, or abstraction affected. |
-| `status` | MUST | One of the status values defined in Section 9.2. |
+| `status` | MUST | One of the status values defined in Section 9.3. |
 | `closure_criteria` | MUST | Stated before remediation begins. |
 | `lineage_notes` | MUST if transformed | Present if the finding was merged, split, or re-scoped. |
 
@@ -480,11 +480,31 @@ Git history MUST NOT substitute for:
 - Closure decisions.
 - Routing rationale.
 
+### 7.5 Document Versioning
+
+Governing documents — foundations and specifications — MUST carry a monotonic integer version identifier (e.g., v1, v2, ... vN). The version number MUST increment by one with each revision.
+
+When a packet references a governing document, the reference MUST include the version identifier so that the reference is pinned to the specific version in effect at the time.
+
+The most recent version of a governing document supersedes all prior versions. Prior versions MUST remain available in version-control history for traceability.
+
 ---
 
 ## 8. Packet Requirements and Templates
 
-### 8.1 Packet Depth Requirements
+### 8.1 Cycle ID Requirements
+
+Each cycle MUST be assigned a unique, durable cycle ID at the point the cycle begins.
+
+The default cycle ID format is: `<PROJECT>-CYC-<NNN>`
+
+Example: `PROCDEV-CYC-001`
+
+The project component MUST be consistent within a project. The numeric component MUST be unique within a project and MUST NOT be reused, even after a cycle closes.
+
+Cycle IDs MUST survive across all phases and packets within a cycle and MUST remain stable in references from later cycles.
+
+### 8.2 Packet Depth Requirements
 
 Packet depth scales with consequence.
 
@@ -505,9 +525,23 @@ Even at scaled-back depth, the minimum required contents for closure determinati
 
 Each packet MUST include a `packet_depth` field.
 
+### 8.2.1 Reconstruction Completeness Requirement
+
+Every cycle MUST produce artifacts explicit enough that a new participant could reconstruct the state of the work without relying on oral history, tool state, or implicit knowledge. This requirement applies at all packet depths.
+
+### 8.2.2 Mid-Cycle Packet Depth Escalation
+
+Any phase participant (reviewer, evaluator, remediator) MAY recommend packet depth escalation from `scaled-back` to `full` when evidence discovered mid-cycle indicates the declared depth is insufficient for closure determination.
+
+When packet depth is escalated mid-cycle:
+
+- The escalation MUST be documented in the current packet with the rationale for why the declared depth was insufficient.
+- All subsequent packets in the same cycle MUST use the escalated depth.
+- Escalation is one-directional: `full` to `scaled-back` is NOT permitted mid-cycle.
+
 ---
 
-### 8.2 Review Packet Template
+### 8.3 Review Packet Template
 
 | Field | Requirement | Notes |
 |---|---|---|
@@ -527,7 +561,7 @@ Each packet MUST include a `packet_depth` field.
 
 ---
 
-### 8.3 Remediation Packet Template
+### 8.4 Remediation Packet Template
 
 | Field | Requirement | Notes |
 |---|---|---|
@@ -546,7 +580,7 @@ Each packet MUST include a `packet_depth` field.
 
 ---
 
-### 8.4 Evaluation Packet Template
+### 8.5 Evaluation Packet Template
 
 | Field | Requirement | Notes |
 |---|---|---|
@@ -554,7 +588,7 @@ Each packet MUST include a `packet_depth` field.
 | `packet_depth` | MUST | `full` or `scaled-back`. |
 | `local_work_unit_granularity` | MUST | Statement of the work unit size and coherence rationale. |
 | `evaluated_finding_ids` | MUST | List of finding IDs evaluated in this packet. |
-| `closure_determination` | MUST | Per-finding closure status. One of: `closed`, `carried_forward`, `re_scoped`, `split`, `merged`. |
+| `closure_determination` | MUST | Per-finding post-evaluation status. One of: `closed`, `open` (remediation insufficient, continuing in current cycle), `carried_forward` (remediation insufficient or unchanged, entering new cycle), `re_scoped`, `split`, `merged`. Not all outcomes are closure — this field records the evaluator's status determination for each finding. |
 | `evidence_for_closure_or_non_closure` | MUST | Per-finding evidence supporting the closure determination. |
 | `git_references` | SHOULD | Branch, commit, diff, or PR references. MUST be present at full depth. |
 | `downstream_issues_identified` | MUST | New findings introduced or exposed by the remediation. Empty if none. |
@@ -565,7 +599,7 @@ Each packet MUST include a `packet_depth` field.
 
 ---
 
-### 8.5 Planning Packet Template
+### 8.6 Planning Packet Template
 
 | Field | Requirement | Notes |
 |---|---|---|
@@ -587,7 +621,7 @@ Each packet MUST include a `packet_depth` field.
 
 ---
 
-### 8.6 Handoff Packet Template
+### 8.7 Handoff Packet Template
 
 | Field | Requirement | Notes |
 |---|---|---|
@@ -619,38 +653,52 @@ The domain and area components MUST be consistent within a project. The numeric 
 
 IDs MUST survive across all cycles regardless of wording changes, scope adjustments, or ownership transfers.
 
-### 9.2 Status Vocabulary
+### 9.2 Severity Vocabulary
+
+Each finding MUST declare exactly one of the following severity levels:
+
+| Severity | Meaning |
+|---|---|
+| `critical` | Blocks closure. The defect or gap is severe enough that the affected area cannot be considered safe, correct, or complete. Immediate remediation is REQUIRED. |
+| `major` | Materially undermines correctness, coherence, or completeness. Remediation is REQUIRED before closure but MAY be sequenced. |
+| `minor` | A real issue that does not block closure on its own. SHOULD be remediated but MAY be deferred with explicit human acceptance per the deferral rules in Section 12.3. |
+| `informational` | An observation, suggestion, or style concern. Does not require remediation. MAY inform future work. |
+
+Severity drives packet depth decisions, deferral eligibility, and routing. "Low-severity" in this specification refers to findings with `minor` or `informational` severity.
+
+### 9.3 Status Vocabulary
 
 Each finding MUST carry exactly one of the following statuses at any given point:
 
 | Status | Meaning |
 |---|---|
-| `open` | The finding is active and not yet being remediated. |
+| `open` | The finding is active and not yet being remediated, or has returned to active status after evaluation determined that remediation was insufficient. |
 | `in_remediation` | Corrective work is in progress. |
 | `pending_evaluation` | Remediation is complete enough to evaluate. |
-| `carried_forward` | The finding remains materially the same in a new cycle. |
+| `carried_forward` | The finding remains materially the same in a new cycle, or remediation was attempted but judged insufficient and the finding passes to a new cycle. |
 | `re_scoped` | The finding remains active but its boundary or interpretation changed without becoming a merge or split case. |
 | `split` | The original finding no longer stands alone. It has been replaced by child findings with preserved lineage. |
 | `merged` | The finding no longer stands alone. It has been absorbed into a surviving finding representing the shared root issue. |
 | `closed` | Closure criteria were met and the finding is no longer active. |
 
-### 9.3 Status Transition Rules
+### 9.4 Status Transition Rules
 
 - A finding MUST begin in `open` status.
 - A finding MUST transition to `in_remediation` when corrective work begins.
 - A finding MUST transition to `pending_evaluation` when remediation is complete enough to evaluate.
 - A finding MUST transition to `closed` only when all closure criteria in Section 12.1 are satisfied.
+- A finding in `pending_evaluation` whose remediation is judged insufficient by evaluation MUST transition to `open` if remediation continues within the current cycle, or `carried_forward` if the finding passes to a new cycle.
 - A finding MAY transition to `carried_forward` when it passes to a new cycle without material change.
 - A finding MAY transition to `re_scoped` when its boundary or interpretation changes without producing a split or merge.
 - A finding MAY be `split` into child findings. The parent finding MUST NOT be marked `closed`. Child findings MUST be assigned new IDs with lineage notes referencing the parent ID.
 - A finding MAY be `merged` into a surviving finding. The absorbed finding MUST NOT be marked `closed`. The surviving finding MUST carry a lineage note referencing the absorbed finding IDs.
 - `split` and `merged` are terminal transformed states for a cycle. They are NOT closure states.
 
-### 9.4 Pre-Remediation Closure Criteria Requirement
+### 9.5 Pre-Remediation Closure Criteria Requirement
 
 Closure criteria MUST be stated before remediation begins on a finding. Remediation MUST NOT be judged against an unstated target.
 
-### 9.5 Re-Scope Rules
+### 9.6 Re-Scope Rules
 
 Re-scoping a finding is PERMITTED only when at least one of the following holds:
 
@@ -703,7 +751,7 @@ Every review MUST declare exactly one of the following modes:
 **Broad review:**
 
 - Assesses the candidate holistically against the governing contract.
-- REQUIRED for major milestones, first reviews, architectural changes, or when confidence in local boundaries is low.
+- REQUIRED for major milestones, the first review of a new project, the first review after a governing document revision, architectural changes, or when confidence in local boundaries is low.
 
 **Delta review:**
 
@@ -754,7 +802,7 @@ The convergence loop consists of Phases 4–8: Review → Remediation → Evalua
 
 The loop MUST repeat until one of the termination conditions in Section 11.2 is satisfied.
 
-No phase in the convergence loop MAY be skipped, though packet depth MAY be scaled per Section 8.1.
+No phase in the convergence loop MAY be skipped, though packet depth MAY be scaled per Section 8.2.
 
 Phases within the loop MUST be executed in declared sequence:
 
@@ -771,7 +819,7 @@ The convergence loop MAY terminate only when one of the following is true:
 - Remaining findings are validly transformed into `split` or `merged` states with preserved lineage and successor routing.
 - Remaining items were explicitly re-scoped into a new cycle with preserved identity and rationale.
 - The governing documents were judged insufficient and the next required action is document revision rather than further remediation.
-- Remaining open findings are explicitly recorded, low severity, non-blocking relative to the current cycle goal, and their deferral has been explicitly accepted by the human owner.
+- Remaining open findings are explicitly recorded, low severity (`minor` or `informational`), non-blocking relative to the current cycle goal, and their deferral has been explicitly accepted by the human owner.
 
 The loop MUST NOT terminate based on elapsed time, number of passes, or tool state.
 
@@ -818,7 +866,7 @@ Cycle-level closure MUST be earned. It MUST NOT be claimed based on visible effo
 
 ### 12.3 Low-Severity Deferral Rules
 
-Low-severity follow-on findings MAY remain open in the current cycle only if ALL of the following hold:
+Low-severity (`minor` or `informational`) follow-on findings MAY remain open in the current cycle only if ALL of the following hold:
 
 - They are explicitly recorded as finding records.
 - They are non-blocking relative to the current cycle goal.
@@ -844,7 +892,7 @@ A `split` or `merged` parent finding MUST NOT be treated as closed.
 The following responsibilities MUST NOT be delegated to agents:
 
 - Approving governing intent when tradeoffs have meaningful strategic consequences.
-- Accepting explicitly documented low-severity residual risk.
+- Accepting explicitly documented low-severity (`minor` or `informational`) residual risk.
 - Deciding when a document revision materially changes project direction.
 - Adjudicating unresolved conflicts between process goals.
 - Resolving conflicts between agent outputs (see Section 13.3).
