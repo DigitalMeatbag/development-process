@@ -633,6 +633,7 @@ If at any point during a fast-track cycle, a participant discovers that any elig
 | `packet_depth` | MUST | `standard` or `fast-track`. |
 | `local_work_unit_granularity` | MUST | Statement of the work unit size and coherence rationale. |
 | `target_finding_ids` | MUST | List of finding IDs being addressed. |
+| `sequencing_rationale` | MUST | Declared order in which findings are addressed and the reason for that order. If only one finding is present, state that explicitly. If deviation from severity-descending order was used, the deviation justification MUST be included here. |
 | `root_cause_analysis` | MUST | Per-finding root cause analysis. Must address why the issue exists, not only what changed. |
 | `changes_made` | MUST | Description of implementation or document changes made, per finding. |
 | `git_references` | SHOULD | Branch, commit, diff, or PR references. MUST be present at standard depth. |
